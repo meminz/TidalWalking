@@ -15,7 +15,7 @@ public class TerrainGraph
     private Vector3 terrainSize;
 
     // 8-directional movement: N, NE, E, SE, S, SW, W, NW
-    private static readonly Vector2Int[] directions = new Vector2Int[]
+    private readonly Vector2Int[] directions = new Vector2Int[]
     {
         Vector2Int.up,                          // N  (0, 1)
         Vector2Int.right,                       // E  (1, 0)
@@ -35,8 +35,8 @@ public class TerrainGraph
         this.tileSize = tileSize;
 
         // Calculate grid dimensions
-        int gridWidth = (int)Math.Floor(terrainSize.x / tileSize) + 1;
-        int gridLength = (int)Math.Floor(terrainSize.z / tileSize) + 1;
+        int gridWidth = (int)Math.Floor(terrainSize.x / tileSize);
+        int gridLength = (int)Math.Floor(terrainSize.z / tileSize);
 
         matrix = new Node[gridWidth, gridLength];
         nodePositions = new Dictionary<Node, Vector3>();
@@ -127,23 +127,24 @@ public class TerrainGraph
 
     float CalculateEdgeWeight(Vector3 from, Vector3 to)
     {
-        // Horizontal distance (xz plane)
-        float horizontalDist = Vector2.Distance(
-            new Vector2(from.x, from.z),
-            new Vector2(to.x, to.z)
-        );
-
-        // Height difference
+        float cost = Vector3.Distance(from, to);
         float heightDiff = to.y - from.y;
 
-        // Base cost is horizontal distance
-        float cost = horizontalDist;
-
-        // If going uphill, apply penalty (moving uphill is slower: 0.5 m/s vs 1 m/s)
-        // This means it takes 2x longer, so cost should be 2x
+        // If going uphill, apply penalty
         if (heightDiff > 0)
         {
             cost *= 2f;
+        }
+
+        // SAFETY PENALTY: penalize low altitude heavily
+        float minHeight = Mathf.Min(from.y, to.y);
+        float safeThreshold = 7.1f; // Around max water level
+
+        if (minHeight < safeThreshold)
+        {
+            // The lower we are, the more expensive
+            float dangerPenalty = (safeThreshold - minHeight) * 3f; // Adjust multiplier
+            cost += dangerPenalty;
         }
 
         return cost;
@@ -259,45 +260,10 @@ public class TerrainGraph
         return matrix;
     }
 
-    // debug
-    public void OnDrawGizmos()
+    public Vector2Int[] GetDirections()
     {
-        if (matrix == null || nodePositions == null)
-            return;
-
-        int gridWidth = matrix.GetLength(0);
-        int gridLength = matrix.GetLength(1);
-
-        // Draw all nodes as small spheres
-        for (int i = 0; i < gridWidth; ++i)
-        {
-            for (int j = 0; j < gridLength; ++j)
-            {
-                Node node = matrix[i, j];
-                Vector3 pos = nodePositions[node];
-
-                // Color based on height (green = high, red = low)
-                float normalizedHeight = pos.y / terrainSize.y;
-                Gizmos.color = Color.Lerp(Color.red, Color.green, normalizedHeight);
-
-                Gizmos.DrawSphere(pos, 0.3f);
-            }
-        }
-
-        // Draw edges
-        Gizmos.color = Color.yellow;
-        Node[] nodes = graph.getNodes();
-        foreach (Node node in nodes)
-        {
-            Vector3 fromPos = nodePositions[node];
-            Edge[] edges = graph.getConnections(node);
-
-            foreach (Edge edge in edges)
-            {
-                Vector3 toPos = nodePositions[edge.to];
-                Gizmos.DrawLine(fromPos, toPos);
-            }
-        }
+        return directions;
     }
+
 
 }

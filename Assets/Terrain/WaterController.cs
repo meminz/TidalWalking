@@ -64,7 +64,7 @@ public class WaterController : MonoBehaviour
     {
         // Calculate cycle duration
         float range = maxWaterLevel - minWaterLevel;
-        float cycleDuration = (range / waterSpeed) * 2f; // Up + down
+        float cycleDuration = range / waterSpeed * 2f; // Up + down
 
         // Normalize time within cycle
         float timeInCycle = futureTime % cycleDuration;

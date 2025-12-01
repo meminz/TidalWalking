@@ -105,20 +105,20 @@ public class DijkstraSquare : MonoBehaviour {
         return 1f;
     }
 	
-	void OnDrawGizmos() {
-		if (matrix != null) {
-			Gizmos.color = edgeColor;
-			for (int i = 0; i < x; i += 1) {
-				for (int j = 0; j < y; j += 1) {
-					foreach (Edge e in g.getConnections(matrix[i, j])) {
-						Vector3 from = e.from.sceneObject.transform.position;
-						Vector3 to = e.to.sceneObject.transform.position;
-						Gizmos.DrawSphere(from + ((to - from) * .2f), .2f);
-						Gizmos.DrawLine (from, to); 
-					}
-				}
-			}
-		}
-	}
+	// void OnDrawGizmos() {
+	// 	if (matrix != null) {
+	// 		Gizmos.color = edgeColor;
+	// 		for (int i = 0; i < x; i += 1) {
+	// 			for (int j = 0; j < y; j += 1) {
+	// 				foreach (Edge e in g.getConnections(matrix[i, j])) {
+	// 					Vector3 from = e.from.sceneObject.transform.position;
+	// 					Vector3 to = e.to.sceneObject.transform.position;
+	// 					Gizmos.DrawSphere(from + ((to - from) * .2f), .2f);
+	// 					Gizmos.DrawLine (from, to); 
+	// 				}
+	// 			}
+	// 		}
+	// 	}
+	// }
 
 }
