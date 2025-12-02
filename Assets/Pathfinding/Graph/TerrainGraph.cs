@@ -130,19 +130,15 @@ public class TerrainGraph
         float cost = Vector3.Distance(from, to);
         float heightDiff = to.y - from.y;
 
-        // If going uphill, apply penalty
         if (heightDiff > 0)
-        {
             cost *= 2f;
-        }
 
-        // SAFETY PENALTY: penalize low altitude heavily
+        // penalize low altitude
         float minHeight = Mathf.Min(from.y, to.y);
         float safeThreshold = 7.1f; // Around max water level
 
         if (minHeight < safeThreshold)
         {
-            // The lower we are, the more expensive
             float dangerPenalty = (safeThreshold - minHeight) * 3f; // Adjust multiplier
             cost += dangerPenalty;
         }

@@ -52,12 +52,12 @@ public class TerrainGraphManager : MonoBehaviour
                 Node node = matrix[i, j];
                 Vector3 pos = terrainGraph.GetNodePosition(node);
 
-                if (pos.y > 7)
+                if (pos.y > 7.1)
                     Gizmos.color = Color.green;
                 else
                 {
-                    float normalizedHeight = pos.y / terrain.terrainData.size.y;
-                    Gizmos.color = Color.Lerp(Color.red, Color.yellow, normalizedHeight);
+                    float normalizedHeight = pos.y / 7;
+                    Gizmos.color = Color.Lerp(Color.red, new Color(1,0.3f,0,1), normalizedHeight);
                 }
 
                 Gizmos.DrawSphere(pos, 0.3f);

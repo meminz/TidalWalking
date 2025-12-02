@@ -3,9 +3,9 @@ using UnityEngine;
 public class WaterController : MonoBehaviour
 {
     [Header("Water Level Settings")]
-    public float minWaterLevel = 0.5f; // meters
-    public float maxWaterLevel = 7f; // meters
-    public float waterSpeed = 0.5f; // meters per second
+    public float minWaterLevel = 0.5f;
+    public float maxWaterLevel = 7f;
+    public float waterSpeed = 0.5f;
 
     private float currentWaterLevel;
     private bool isRising = true;

@@ -17,7 +17,6 @@ public class AgentController : MonoBehaviour
     [Header("Pathfinding")]
     public float replanInterval = 1f;
     public float predictionTime = 8f;
-    private HeuristicFunction pathfindingHeuristic;
 
     [Header("Debug")]
     public bool visualizePath = true;
@@ -26,10 +25,12 @@ public class AgentController : MonoBehaviour
     private List<Node> currentPath;
     private int currentPathIndex = 0;
     private float timeSinceLastCheck = 0f;
+    private HeuristicFunction pathfindingHeuristic;
 
     private Vector3 currentTarget;
     private bool isMoving = false;
     private bool reachedGoal = false;
+    private float safeHeight;
 
     private FSM fsm;
 
@@ -53,7 +54,10 @@ public class AgentController : MonoBehaviour
         // Position agent at start node
         Node startNode = terrainGraph.GetStartNode();
         Vector3 startPos = terrainGraph.GetNodePosition(startNode);
+        startPos.y += collider.bounds.size.y / 2;
         transform.position = startPos;
+
+        safeHeight = waterController.maxWaterLevel + 0.1f;
 
         pathfindingHeuristic = (Node start, Node goal) =>
         {
@@ -63,8 +67,13 @@ public class AgentController : MonoBehaviour
             float distance = Vector3.Distance(fromPos, toPos);
             float heightBonus = toPos.y * 0.9f; // Prefer higher ground
 
+            // float safeBonus = 0f;
+            // if (toPos.y < safeHeight)
+            //     safeBonus = (toPos.y - safeHeight) * 3f;
+
             return distance - heightBonus;
         };
+
 
         // FSM Setup
         FSMState traverse = new();
@@ -110,14 +119,12 @@ public class AgentController : MonoBehaviour
 
         fsm.Update();
 
-
         // Periodic transition checks
         timeSinceLastCheck += Time.deltaTime;
         if (timeSinceLastCheck >= replanInterval)
         {
             timeSinceLastCheck = 0f;
         }
-
 
     }
 
@@ -175,17 +182,15 @@ public class AgentController : MonoBehaviour
         Node currentNode = GetCurrentNode();
         if (currentNode == null) return;
         
-        if (terrainGraph.GetNodePosition(currentNode).y > waterController.maxWaterLevel + safetyMargin)
+        if (terrainGraph.GetNodePosition(currentNode).y > safeHeight)
         {
+            Debug.Log($"Already on high ground");
             isMoving = false;
             return;
         }
-        
-
 
         // Find safe high ground
         Node highGroundNode = FindSafeHighGround();
-        // if (highGroundNode == currentNode) return;
 
         if (highGroundNode == null)
         {
@@ -200,7 +205,7 @@ public class AgentController : MonoBehaviour
 
         if (path == null || path.Count == 0)
         {
-            Debug.LogError("Cannot reach high ground!");
+            Debug.LogError($"Cannot reach high ground!");
             isMoving = false;
             return;
         }
@@ -222,18 +227,6 @@ public class AgentController : MonoBehaviour
     }
 
     // ========== FSM TRANSITIONS ==========
-    // bool PathToGoalIsUnsafe()
-    // {
-    //     // Can we reach the goal with current water predictions?
-    //     Node currentNode = GetCurrentNode();
-    //     if (currentNode == null) return true;
-
-    //     Node goalNode = terrainGraph.GetGoalNode();
-    //     List<Node> testPath = CalculateTideAwarePath(currentNode, goalNode);
-
-    //     return testPath == null || testPath.Count == 0;
-    // }
-
     bool IsTideThreatening()
     {
         if (!waterController.IsRising() || currentPath == null || currentPath.Count == 0)
@@ -279,14 +272,14 @@ public class AgentController : MonoBehaviour
             return false;
 
         float currentWater = waterController.GetCurrentWaterLevel();
-        // if (transform.position.y < currentWater + safetyMargin)
-        //     return false;
+        if (transform.position.y < currentWater + safetyMargin)
+            return false;
 
         Node currentNode = GetCurrentNode();
         Node goalNode = terrainGraph.GetGoalNode();
 
-        // if (currentNode == null || goalNode == null)
-        //     return false;
+        if (currentNode == null || goalNode == null)
+            return false;
 
         // Get a path to goal
         List<Node> testPath = FindPath(currentNode, goalNode);
@@ -300,7 +293,7 @@ public class AgentController : MonoBehaviour
         float travelTime = 0f;
         int nodesToCheck = Mathf.Min(5, currentPath.Count - currentPathIndex);
 
-        for (int i = currentPathIndex; i < Mathf.Min(currentPathIndex + nodesToCheck, currentPath.Count); ++i)
+        for (int i = 0; i < Mathf.Min(nodesToCheck, testPath.Count); ++i)
         {
             Vector3 nodePos = terrainGraph.GetNodePosition(testPath[i]);
 
@@ -322,7 +315,7 @@ public class AgentController : MonoBehaviour
         }
 
         // Path is safe!
-        // currentPath = testPath;
+        currentPath = testPath;
         return true;
     }
 
@@ -332,6 +325,20 @@ public class AgentController : MonoBehaviour
     }
 
     // ========== PATHFINDING ==========
+    // float pathfindingHeuristic(Node start, Node goal) 
+    // {
+    //     Vector3 fromPos = terrainGraph.GetNodePosition(start);
+    //     Vector3 toPos = terrainGraph.GetNodePosition(goal);
+
+    //     float distance = Vector3.Distance(fromPos, toPos);
+    //     float heightBonus = toPos.y * 0.9f; // Prefer higher ground
+
+    //     // float safeBonus = 0f;
+    //     // if (toPos.y < safeHeight)
+    //     //     safeBonus = (toPos.y - safeHeight) * 3f;
+
+    //     return distance - heightBonus;
+    // }
 
     List<Node> FindPath(Node start, Node goal)
     {
@@ -350,103 +357,10 @@ public class AgentController : MonoBehaviour
         return path;
     }
 
-    List<Node> CalculateTideAwarePath(Node start, Node goal)
-    {
-        Debug.Log("Calculating tide aware path.");
-        // Mark nodes as unwalkable if they'll be underwater in the near future
-        float currentTime = Time.time;
-        float checkTime = currentTime + predictionTime;
-
-        // Get predicted water level
-        float predictedWater = waterController.GetWaterLevelAtTime(checkTime);
-
-        UpdateGraphWalkability(predictedWater);
-
-        return FindPath(start,goal);
-    }
-
-    void UpdateGraphWalkability(float waterLevel)
-    {
-        // Instead of rebuilding graph, just remove edges to/from underwater nodes
-        Node[,] matrix = terrainGraph.GetMatrix();
-        int gridWidth = matrix.GetLength(0);
-        int gridLength = matrix.GetLength(1);
-
-        Graph newGraph = new();
-
-        // Add all nodes
-        for (int i = 0; i < gridWidth; ++i)
-            for (int j = 0; j < gridLength; ++j)
-                newGraph.AddNode(matrix[i, j]);
-
-        // Add edges only between safe nodes
-        for (int i = 0; i < gridWidth; ++i)
-        {
-            for (int j = 0; j < gridLength; ++j)
-            {
-                Node currentNode = matrix[i, j];
-                Vector3 currentPos = terrainGraph.GetNodePosition(currentNode);
-
-                // Skip if underwater
-                if (currentPos.y < waterLevel + safetyMargin)
-                    continue;
-
-                // Check all 8 neighbors
-                // Vector2Int[] directions = new Vector2Int[]
-                // {
-                //     Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left,
-                //     Vector2Int.up + Vector2Int.right, Vector2Int.down + Vector2Int.right,
-                //     Vector2Int.down + Vector2Int.left, Vector2Int.up + Vector2Int.left
-                // };
-
-                Vector2Int[] directions = terrainGraph.GetDirections();
-
-                foreach (Vector2Int dir in directions)
-                {
-                    int ni = i + dir.x;
-                    int nj = j + dir.y;
-
-                    if (ni >= 0 && ni < gridWidth && nj >= 0 && nj < gridLength)
-                    {
-                        Node neighborNode = matrix[ni, nj];
-                        Vector3 neighborPos = terrainGraph.GetNodePosition(neighborNode);
-
-                        // Skip if neighbor underwater
-                        if (neighborPos.y < waterLevel + safetyMargin)
-                            continue;
-
-                        // Calculate edge weight
-                        float distance = Vector3.Distance(currentPos, neighborPos);
-
-                        float heightDiff = neighborPos.y - currentPos.y;
-
-                        // If going uphill, apply penalty
-                        if (heightDiff > 0)
-                        {
-                            distance *= 2f;
-                        }
-
-                        newGraph.AddEdge(new Edge(currentNode, neighborNode, distance));
-                    }
-                }
-            }
-        }
-
-        terrainGraph.SetGraph(newGraph);
-    }
-
     Node FindSafeHighGround()
     {
-        // Find node that will be safe even at maximum water level
-        float maxWater = waterController.maxWaterLevel;
-        float safeHeight = maxWater + safetyMargin; // Extra buffer
-
-        // Node currentNode = GetCurrentNode();
         Vector3 currentPos = transform.position;
         Node currentNode = GetCurrentNode();
-
-        // if (terrainGraph.GetNodePosition(currentNode).y > safeHeight)
-        //     return currentNode;
 
         Node bestNode = null;
         float bestDist = float.MaxValue;
