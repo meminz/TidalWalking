@@ -2,13 +2,9 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
+[RequireComponent(typeof(Collider))]
 public class AgentController : MonoBehaviour
 {
-    [Header("References")]
-    public TerrainGraphManager terrainGraphManager;
-    public WaterController waterController;
-    public new Collider collider;
-
     [Header("Movement Settings")]
     public float flatSpeed = 1f;
     public float uphillSpeed = 0.5f;
@@ -16,16 +12,19 @@ public class AgentController : MonoBehaviour
 
     [Header("Pathfinding")]
     public float replanInterval = 1f;
-    public float predictionTime = 8f;
+    public int checkNodesAhead = 8;
 
     [Header("Debug")]
     public bool visualizePath = true;
 
+    private TerrainGraphManager terrainGraphManager;
     private TerrainGraph terrainGraph;
+    private WaterController waterController;
+    private Collider _collider;
+
     private List<Node> currentPath;
     private int currentPathIndex = 0;
     private float timeSinceLastCheck = 0f;
-    private HeuristicFunction pathfindingHeuristic;
 
     private Vector3 currentTarget;
     private bool isMoving = false;
@@ -40,8 +39,7 @@ public class AgentController : MonoBehaviour
             terrainGraphManager = FindFirstObjectByType<TerrainGraphManager>();
         if (waterController == null)
             waterController = FindFirstObjectByType<WaterController>();
-        if (collider == null)
-            collider = FindFirstObjectByType<Collider>();
+        _collider = GetComponent<Collider>();
 
         terrainGraph = terrainGraphManager.GetGraph();
 
@@ -54,42 +52,29 @@ public class AgentController : MonoBehaviour
         // Position agent at start node
         Node startNode = terrainGraph.GetStartNode();
         Vector3 startPos = terrainGraph.GetNodePosition(startNode);
-        startPos.y += collider.bounds.size.y / 2;
+        // startPos.y += _collider.bounds.size.y / 2;
         transform.position = startPos;
 
         safeHeight = waterController.maxWaterLevel + 0.1f;
-
-        pathfindingHeuristic = (Node start, Node goal) =>
-        {
-            Vector3 fromPos = terrainGraph.GetNodePosition(start);
-            Vector3 toPos = terrainGraph.GetNodePosition(goal);
-
-            float distance = Vector3.Distance(fromPos, toPos);
-            float heightBonus = toPos.y * 0.9f; // Prefer higher ground
-
-            // float safeBonus = 0f;
-            // if (toPos.y < safeHeight)
-            //     safeBonus = (toPos.y - safeHeight) * 3f;
-
-            return distance - heightBonus;
-        };
-
+        // pathfindingHeuristic = Heuristic;
 
         // FSM Setup
         FSMState traverse = new();
-        FSMState seekHighGround = new();
-        FSMState goalReached = new();
-
         traverse.enterActions.Add(PlanPathToGoal);
         traverse.stayActions.Add(TraverseUpdate);
 
+        FSMState seekHighGround = new();
         seekHighGround.enterActions.Add(PlanPathToHighGround);
         seekHighGround.stayActions.Add(TraverseUpdate);
 
+        FSMState wander = new FSMState();
+        // wander.enterActions.Add(StartWandering);
+        wander.stayActions.Add(WanderUpdate);
+
+        FSMState goalReached = new();
         goalReached.enterActions.Add(OnGoalReached);
 
         // Transitions
-        // FSMTransition cannotReachGoal = new(PathToGoalIsUnsafe);
         FSMTransition cannotReachGoal = new(IsTideThreatening);
         traverse.AddTransition(cannotReachGoal, seekHighGround);
 
@@ -102,8 +87,135 @@ public class AgentController : MonoBehaviour
         FSMTransition reachedGoalFromHighGround = new(HasReachedGoal);
         seekHighGround.AddTransition(reachedGoalFromHighGround, goalReached);
 
+        FSMTransition noProgressPossible = new FSMTransition(CannotMakeProgress);
+        seekHighGround.AddTransition(noProgressPossible, wander);
+
+        FSMTransition canResumeFromWander = new FSMTransition(CanSafelyReachGoal);
+        wander.AddTransition(canResumeFromWander, traverse);
+
+        FSMTransition reachedGoalFromWander = new FSMTransition(HasReachedGoal);
+        wander.AddTransition(reachedGoalFromWander, goalReached);
+
+
         fsm = new FSM(traverse);
     }
+
+
+
+
+    private Vector3 wanderTarget;
+    // private float wanderTimer = 0f;
+    // private float wanderInterval = 3f; // Pick new target every 3 seconds
+
+    // void StartWandering()
+    // {
+    //     Debug.Log("FSM: Starting to wander on high ground");
+    //     PickRandomWanderTarget();
+    // }
+
+    // void WanderUpdate()
+    // {
+    //     if (isMoving)
+    //         MoveTowardsTarget();
+
+    //     wanderTimer += Time.deltaTime;
+    //     if (wanderTimer >= wanderInterval || Vector3.Distance(transform.position, currentTarget) < 0.2f)
+    //     {
+    //         wanderTimer = 0f;
+    //         PickRandomWanderTarget();
+    //     }
+    // }
+
+    void WanderUpdate()
+    {
+        if (isMoving)
+            MoveTowardsTarget();
+
+        // When path ends, pick next action
+        if (!isMoving || (currentPath != null && currentPathIndex >= currentPath.Count))
+        {
+            // Try to make progress toward goal
+            Node currentNode = GetCurrentNode();
+            Node goalNode = terrainGraph.GetGoalNode();
+
+            List<Node> path = FindPath(currentNode, goalNode);
+
+            if (path != null && path.Count > 3)
+            {
+                // Truncate at first unsafe
+                List<Node> safePortion = new List<Node>();
+                foreach (Node node in path)
+                {
+                    Vector3 pos = terrainGraph.GetNodePosition(node);
+                    if (pos.y > safeHeight)
+                        safePortion.Add(node);
+                    else
+                        break;
+                }
+
+                if (safePortion.Count > 1) // Can make progress
+                {
+                    currentPath = safePortion;
+                    currentPathIndex = 0;
+                    SetNextTarget();
+                    isMoving = true;
+                    return;
+                }
+            }
+
+            // Can't make progress - wander locally
+            PickRandomWanderTarget();
+        }
+    }
+
+
+    void PickRandomWanderTarget()
+    {
+        Node currentNode = GetCurrentNode();
+        if (currentNode == null) return;
+
+        // Find safe adjacent nodes
+        Edge[] edges = terrainGraph.GetGraph().getConnections(currentNode);
+        List<Node> safeNeighbors = new();
+
+        foreach (Edge edge in edges)
+        {
+            Vector3 neighborPos = terrainGraph.GetNodePosition(edge.to);
+            if (neighborPos.y > safeHeight)
+                safeNeighbors.Add(edge.to);
+        }
+
+        if (safeNeighbors.Count > 0)
+        {
+            Node randomNeighbor = safeNeighbors[UnityEngine.Random.Range(0, safeNeighbors.Count)];
+            currentPath = new List<Node>{currentNode, randomNeighbor};
+            currentPathIndex = 0;
+            isMoving = true;
+            // Debug.Log($"Wandering to {currentTarget}");
+        }
+    }
+
+    bool CannotMakeProgress()
+    {
+        // Check if we've reached our high ground destination and can't progress
+        if (currentPath == null || (currentPath != null && currentPathIndex >= currentPath.Count))
+            // We've finished our path to high ground
+            // Check if we can make ANY progress toward goal
+            return !CanSafelyReachGoal();
+
+        return false;
+    }
+
+
+
+
+
+
+
+
+
+
+
 
     void Update()
     {
@@ -185,6 +297,7 @@ public class AgentController : MonoBehaviour
         if (terrainGraph.GetNodePosition(currentNode).y > safeHeight)
         {
             Debug.Log($"Already on high ground");
+            currentPath = null;
             isMoving = false;
             return;
         }
@@ -200,7 +313,6 @@ public class AgentController : MonoBehaviour
         }
 
         // Calculate path to high ground
-        // List<Node> path = CalculateTideAwarePath(currentNode, highGroundNode);
         List<Node> path = FindPath(currentNode, highGroundNode);
 
         if (path == null || path.Count == 0)
@@ -235,7 +347,7 @@ public class AgentController : MonoBehaviour
         float currentTime = Time.time;
         float travelTime = 0f;
 
-        int nodesToCheck = Mathf.Min(5, currentPath.Count - currentPathIndex);
+        int nodesToCheck = Mathf.Min(checkNodesAhead, currentPath.Count - currentPathIndex);
 
         // Check upcoming nodes with actual arrival time prediction
         for (int i = currentPathIndex; i < Mathf.Min(currentPathIndex + nodesToCheck, currentPath.Count); ++i)
@@ -291,7 +403,7 @@ public class AgentController : MonoBehaviour
         // Now check if this path is safe with arrival time prediction
         float currentTime = Time.time;
         float travelTime = 0f;
-        int nodesToCheck = Mathf.Min(5, currentPath.Count - currentPathIndex);
+        int nodesToCheck = Mathf.Min(checkNodesAhead, testPath.Count);
 
         for (int i = 0; i < Mathf.Min(nodesToCheck, testPath.Count); ++i)
         {
@@ -316,6 +428,7 @@ public class AgentController : MonoBehaviour
 
         // Path is safe!
         currentPath = testPath;
+        currentPathIndex = 0;
         return true;
     }
 
@@ -325,26 +438,29 @@ public class AgentController : MonoBehaviour
     }
 
     // ========== PATHFINDING ==========
-    // float pathfindingHeuristic(Node start, Node goal) 
-    // {
-    //     Vector3 fromPos = terrainGraph.GetNodePosition(start);
-    //     Vector3 toPos = terrainGraph.GetNodePosition(goal);
+    float Heuristic(Node start, Node goal) 
+    {
+        Vector3 fromPos = terrainGraph.GetNodePosition(start);
+        Vector3 toPos = terrainGraph.GetNodePosition(goal);
 
-    //     float distance = Vector3.Distance(fromPos, toPos);
-    //     float heightBonus = toPos.y * 0.9f; // Prefer higher ground
+        float distance = Vector3.Distance(fromPos, toPos);
+        float heightBonus = toPos.y * 0.9f; // Prefer higher ground
 
-    //     // float safeBonus = 0f;
-    //     // if (toPos.y < safeHeight)
-    //     //     safeBonus = (toPos.y - safeHeight) * 3f;
+        // float safeBonus = 0f;
+        // if (toPos.y < safeHeight)
+        // {
+        //     safeBonus = (toPos.y - safeHeight) * 4f;
+        //     heightBonus /= 2;
+        // }
 
-    //     return distance - heightBonus;
-    // }
+        return distance - heightBonus;
+    }
 
     List<Node> FindPath(Node start, Node goal)
     {
         Debug.Log("Calculating path.");
         Graph graph = terrainGraph.GetGraph();
-        Edge[] pathEdges = AStarSolver.Solve(graph, start, goal, pathfindingHeuristic);
+        Edge[] pathEdges = AStarSolver.Solve(graph, start, goal, Heuristic);
 
         if (pathEdges.Length == 0)
             return null;
@@ -460,6 +576,11 @@ public class AgentController : MonoBehaviour
             ++currentPathIndex;
             SetNextTarget();
         }
+    }
+
+    Collider GetCollider()
+    {
+        return _collider;
     }
 
     // debug

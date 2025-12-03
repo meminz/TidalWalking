@@ -12,16 +12,19 @@ public class TerrainGraphManager : MonoBehaviour
 
     private TerrainGraph terrainGraph;
     private Terrain terrain;
+    private float safeHeight;
 
     void Awake()
     {
         terrain = GetComponent<Terrain>();
+        WaterController waterController = FindFirstObjectByType<WaterController>();
+        safeHeight = waterController.maxWaterLevel;
     }
 
     public void BuildGraph()
     {
         Debug.Log("Building terrain graph...");
-        terrainGraph = new TerrainGraph(terrain, tileSize);
+        terrainGraph = new(terrain, tileSize, safeHeight);
         Debug.Log($"Graph built with {terrainGraph.GetMatrix().Length} nodes");
     }
 

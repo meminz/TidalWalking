@@ -13,6 +13,7 @@ public class TerrainGraph
     private Terrain terrain;
     private TerrainData terrainData;
     private Vector3 terrainSize;
+    private float safeHeight;
 
     // 8-directional movement: N, NE, E, SE, S, SW, W, NW
     private readonly Vector2Int[] directions = new Vector2Int[]
@@ -27,12 +28,13 @@ public class TerrainGraph
         Vector2Int.up + Vector2Int.left         // NW (-1, 1)
     };
 
-    public TerrainGraph(Terrain terrain, float tileSize)
+    public TerrainGraph(Terrain terrain, float tileSize, float safeHeight)
     {
         this.terrain = terrain;
         this.terrainData = terrain.terrainData;
         this.terrainSize = terrainData.size;
         this.tileSize = tileSize;
+        this.safeHeight = safeHeight;
 
         // Calculate grid dimensions
         int gridWidth = (int)Math.Floor(terrainSize.x / tileSize);
@@ -133,13 +135,11 @@ public class TerrainGraph
         if (heightDiff > 0)
             cost *= 2f;
 
-        // penalize low altitude
-        float minHeight = Mathf.Min(from.y, to.y);
-        float safeThreshold = 7.1f; // Around max water level
+        float safeHeight = 7.1f; // Around max water level
 
-        if (minHeight < safeThreshold)
+        if (to.y < safeHeight)
         {
-            float dangerPenalty = (safeThreshold - minHeight) * 3f; // Adjust multiplier
+            float dangerPenalty = (safeHeight - to.y) * 5f;
             cost += dangerPenalty;
         }
 

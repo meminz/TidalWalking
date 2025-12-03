@@ -3,7 +3,7 @@ using UnityEngine;
 public class ThirdPersonCamera : MonoBehaviour
 {
     public Transform target;
-    public Vector3 offset = new Vector3(0, 5, -7);
+    public Vector3 offset = new Vector3(0, 8, -10);
     public float smoothSpeed = 0.125f;
 
     void LateUpdate()
