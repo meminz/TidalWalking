@@ -67,9 +67,9 @@ public class AgentController : MonoBehaviour
         seekHighGround.enterActions.Add(PlanPathToHighGround);
         seekHighGround.stayActions.Add(TraverseUpdate);
 
-        FSMState wander = new FSMState();
-        // wander.enterActions.Add(StartWandering);
-        wander.stayActions.Add(WanderUpdate);
+        FSMState stayHigh = new FSMState();
+        // stayHigh.enterActions.Add(StartWandering);
+        stayHigh.stayActions.Add(WanderUpdate);
 
         FSMState goalReached = new();
         goalReached.enterActions.Add(OnGoalReached);
@@ -88,13 +88,13 @@ public class AgentController : MonoBehaviour
         seekHighGround.AddTransition(reachedGoalFromHighGround, goalReached);
 
         FSMTransition noProgressPossible = new FSMTransition(CannotMakeProgress);
-        seekHighGround.AddTransition(noProgressPossible, wander);
+        seekHighGround.AddTransition(noProgressPossible, stayHigh);
 
         FSMTransition canResumeFromWander = new FSMTransition(CanSafelyReachGoal);
-        wander.AddTransition(canResumeFromWander, traverse);
+        stayHigh.AddTransition(canResumeFromWander, traverse);
 
         FSMTransition reachedGoalFromWander = new FSMTransition(HasReachedGoal);
-        wander.AddTransition(reachedGoalFromWander, goalReached);
+        stayHigh.AddTransition(reachedGoalFromWander, goalReached);
 
 
         fsm = new FSM(traverse);
@@ -109,7 +109,7 @@ public class AgentController : MonoBehaviour
 
     // void StartWandering()
     // {
-    //     Debug.Log("FSM: Starting to wander on high ground");
+    //     Debug.Log("FSM: Starting to stayHigh on high ground");
     //     PickRandomWanderTarget();
     // }
 
@@ -163,7 +163,7 @@ public class AgentController : MonoBehaviour
                 }
             }
 
-            // Can't make progress - wander locally
+            // Can't make progress - stayHigh locally
             PickRandomWanderTarget();
         }
     }
@@ -515,11 +515,13 @@ public class AgentController : MonoBehaviour
 
     Node GetCurrentNode()
     {
+        if (isMoving && currentPath != null && currentPathIndex < currentPath.Count)
+            return currentPath[currentPathIndex];
+
         Node node = terrainGraph.GetNodeAtPosition(transform.position.x, transform.position.z);
         if (node == null)
-        {
             Debug.LogError("Agent not on valid node!");
-        }
+
         return node;
     }
 
