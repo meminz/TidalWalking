@@ -52,7 +52,7 @@ public class AgentController : MonoBehaviour
         // Position agent at start node
         Node startNode = terrainGraph.GetStartNode();
         Vector3 startPos = terrainGraph.GetNodePosition(startNode);
-        // startPos.y += _collider.bounds.size.y / 2;
+        startPos.y += _collider.bounds.size.y * 0.5f;
         transform.position = startPos;
 
         safeHeight = waterController.maxWaterLevel + 0.1f;
@@ -153,7 +153,7 @@ public class AgentController : MonoBehaviour
                         break;
                 }
 
-                if (safePortion.Count > 1) // Can make progress
+                if (safePortion.Count > 3) // Can make progress
                 {
                     currentPath = safePortion;
                     currentPathIndex = 0;
@@ -222,7 +222,7 @@ public class AgentController : MonoBehaviour
         if (terrainGraph == null) return;
 
         // Check if drowned
-        if (transform.position.y < waterController.GetCurrentWaterLevel())
+        if (transform.position.y - _collider.bounds.size.y * 0.5f < waterController.GetCurrentWaterLevel())
         {
             Debug.LogError("Agent drowned!");
             enabled = false;
@@ -526,7 +526,6 @@ public class AgentController : MonoBehaviour
     }
 
     // ========== MOVEMENT ==========
-
     void SetNextTarget()
     {
         if (currentPath == null || currentPath.Count == 0)
@@ -550,34 +549,39 @@ public class AgentController : MonoBehaviour
     {
         // Debug.Log($"Moving towards target {currentPathIndex}/{currentPath.Count}");
 
-        Vector3 direction = currentTarget - transform.position;
-        float heightDiff = currentTarget.y - transform.position.y;
+        Vector3 adjTarget = new(currentTarget.x, transform.position.y, currentTarget.z);
+        // Vector3 adjTarget = new(currentTarget.x, currentTarget.y + _collider.bounds.size.y * 0.5f, currentTarget.z);
+        Vector3 direction = (adjTarget - transform.position).normalized;
+
+        float heightDiff = adjTarget.y - transform.position.y;
         float speed = (heightDiff > 0.01f) ? uphillSpeed : flatSpeed;
 
         float step = speed * Time.deltaTime;
-        transform.position = Vector3.MoveTowards(transform.position, currentTarget, step);
+        transform.position = Vector3.MoveTowards(transform.position, adjTarget, step);
+        // transform.position = Vector3.MoveTowards(transform.position, transform.position + direction, step);
 
-        // Terrain terrain = terrainGraphManager.GetComponent<Terrain>();
-        // float terrainHeight = terrain.SampleHeight(transform.position);
-        // float minHeight = terrain.transform.position.y + terrainHeight + collider.bounds.size.y /2 ;
-        // if (transform.position.y < minHeight)
-        // {
-        //     // Vector3 pos = transform.position;
-        //     // pos.y = minHeight;
-        //     transform.position.y = minHeight;
-        // }
+        if (Vector3.Distance(
+                    new Vector2(transform.position.x, transform.position.z),
+                    new Vector2(currentTarget.x, currentTarget.z)
+                    ) < 0.1f)
+        {
+            ++currentPathIndex;
+            SetNextTarget();
+            return;
+        }
 
-        if (direction.sqrMagnitude > 0.01f) // Only rotate if moving
+        if (direction.sqrMagnitude > 0.1f)
         {
             Quaternion targetRotation = Quaternion.LookRotation(direction);
             transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * 5f);
         }
 
-        if (Vector3.Distance(transform.position, currentTarget) < 0.1f)
-        {
-            ++currentPathIndex;
-            SetNextTarget();
-        }
+        Terrain terrain = terrainGraphManager.GetComponent<Terrain>();
+        float targetY = terrain.SampleHeight(transform.position) + _collider.bounds.size.y * 0.5f;
+        Vector3 pos = transform.position;
+        pos.y = targetY;
+        transform.position = pos;
+
     }
 
     Collider GetCollider()
