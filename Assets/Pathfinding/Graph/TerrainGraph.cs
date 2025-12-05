@@ -132,14 +132,14 @@ public class TerrainGraph
         float cost = Vector3.Distance(from, to);
         float heightDiff = to.y - from.y;
 
-        if (heightDiff > 0)
+        if (heightDiff > 0.1f)
             cost *= 2f;
 
-        float safeHeight = 7.1f; // Around max water level
+        // float safeHeight = 7.1f; // Around max water level
 
         if (to.y < safeHeight)
         {
-            float dangerPenalty = (safeHeight - to.y) * 5f;
+            float dangerPenalty = (safeHeight - to.y) * 6f;
             cost += dangerPenalty;
         }
 

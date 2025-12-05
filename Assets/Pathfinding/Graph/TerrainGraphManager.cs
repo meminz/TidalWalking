@@ -18,7 +18,8 @@ public class TerrainGraphManager : MonoBehaviour
     {
         terrain = GetComponent<Terrain>();
         WaterController waterController = FindFirstObjectByType<WaterController>();
-        safeHeight = waterController.maxWaterLevel;
+        safeHeight = waterController.maxWaterLevel + 0.1f;
+        // Debug.LogError(safeHeight);
     }
 
     public void BuildGraph()

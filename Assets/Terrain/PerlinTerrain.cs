@@ -7,9 +7,9 @@ public class PerlinTerrain : MonoBehaviour
 	public Vector3 terrainSize = new(50, 10, 100); // width, height, length
 
 	[Header("Perlin Noise Settings")]
-	public float perlinScale = 5f;
-	public int octaves = 2;
-	public float persistence = 0.5f;
+	public float perlinScale = 10f;
+	public int octaves = 5;
+	public float persistence = 1f;
 
 	[Header("Corner Constraints")]
 	public float minCornerHeight = 8.5f;
