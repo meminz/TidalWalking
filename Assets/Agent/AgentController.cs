@@ -618,7 +618,7 @@ public class AgentController : MonoBehaviour
         transform.position = pos;
     }
 
-    Vector3 Orientate(Terrain terrain, Vector3 direction)
+    void Orientate(Terrain terrain, Vector3 direction)
     {
         TerrainData terrainData = terrain.terrainData;
 
