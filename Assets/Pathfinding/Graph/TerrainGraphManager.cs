@@ -19,7 +19,6 @@ public class TerrainGraphManager : MonoBehaviour
         terrain = GetComponent<Terrain>();
         WaterController waterController = FindFirstObjectByType<WaterController>();
         safeHeight = waterController.maxWaterLevel + 0.1f;
-        // Debug.LogError(safeHeight);
     }
 
     public void BuildGraph()
@@ -48,7 +47,6 @@ public class TerrainGraphManager : MonoBehaviour
         int gridWidth = matrix.GetLength(0);
         int gridLength = matrix.GetLength(1);
 
-        // draw nodes
         for (int i = 0; i < gridWidth; ++i)
         {
             for (int j = 0; j < gridLength; ++j)
@@ -68,7 +66,6 @@ public class TerrainGraphManager : MonoBehaviour
             }
         }
 
-        // draw edges
         if (showEdges)
         {
             Gizmos.color = new Color(1f, 1f, 0f, 0.3f);

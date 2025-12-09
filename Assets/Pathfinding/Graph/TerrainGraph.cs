@@ -36,7 +36,7 @@ public class TerrainGraph
         this.tileSize = tileSize;
         this.safeHeight = safeHeight;
 
-        // Calculate grid dimensions
+        // calculate grid dimensions
         int gridWidth = (int)Math.Floor(terrainSize.x / tileSize);
         int gridLength = (int)Math.Floor(terrainSize.z / tileSize);
 
@@ -53,33 +53,33 @@ public class TerrainGraph
         int gridWidth = matrix.GetLength(0);
         int gridLength = matrix.GetLength(1);
 
-        // First pass: create all nodes
+        // first pass: create all nodes
         for (int i = 0; i < gridWidth; ++i)
         {
             for (int j = 0; j < gridLength; ++j)
             {
-                // Calculate world position (center of tile)
+                // calculate world position (center of tile)
                 float worldX = (i + 0.5f) * tileSize;
                 float worldZ = (j + 0.5f) * tileSize;
 
-                // Get height from terrain at this position
+                // get height from terrain at this position
                 float height = GetTerrainHeightAtPosition(worldX, worldZ);
 
-                // Create node
+                // create node
                 Node n = new Node($"Node_{i}_{j}");
                 matrix[i, j] = n;
 
-                // Store position and indices
+                // store position and indices
                 Vector3 worldPos = terrain.transform.position + new Vector3(worldX, height, worldZ);
                 nodePositions[n] = worldPos;
                 nodeIndices[n] = new Vector2Int(i, j);
 
-                // Add to graph
+                // add to graph
                 graph.AddNode(n);
             }
         }
 
-        // Second pass: create edges between neighbors
+        // second pass: create edges between neighbors
         for (int i = 0; i < gridWidth; ++i)
         {
             for (int j = 0; j < gridLength; ++j)
@@ -87,22 +87,22 @@ public class TerrainGraph
                 Node currentNode = matrix[i, j];
                 Vector3 currentPos = nodePositions[currentNode];
 
-                // Check all 8 directions
+                // check all 8 directions
                 foreach (Vector2Int dir in directions)
                 {
                     int ni = i + dir.x;
                     int nj = j + dir.y;
 
-                    // Check bounds
+                    // check bounds
                     if (ni >= 0 && ni < gridWidth && nj >= 0 && nj < gridLength)
                     {
                         Node neighborNode = matrix[ni, nj];
                         Vector3 neighborPos = nodePositions[neighborNode];
 
-                        // Calculate edge weight based on distance and height difference
+                        // calculate edge weight based on distance and height difference
                         float weight = CalculateEdgeWeight(currentPos, neighborPos);
 
-                        // Create edge
+                        // create edge
                         Edge edge = new Edge(currentNode, neighborNode, weight);
                         graph.AddEdge(edge);
                     }
@@ -113,15 +113,15 @@ public class TerrainGraph
 
     float GetTerrainHeightAtPosition(float worldX, float worldZ)
     {
-        // Convert world position to terrain-local position (0-1 range)
+        // convert world position to terrain-local position (0-1 range)
         float normalizedX = worldX / terrainSize.x;
         float normalizedZ = worldZ / terrainSize.z;
 
-        // Clamp to valid range
+        // clamp to valid range
         normalizedX = Mathf.Clamp01(normalizedX);
         normalizedZ = Mathf.Clamp01(normalizedZ);
 
-        // Get interpolated height from terrain
+        // get interpolated height from terrain
         float height = terrainData.GetInterpolatedHeight(normalizedX, normalizedZ);
 
         return height;
@@ -204,7 +204,7 @@ public class TerrainGraph
     // quantization (world position to node)
     public Node GetNodeAtPosition(float worldX, float worldZ)
     {
-        // Convert to local terrain coordinates
+        // convert to local terrain coordinates
         Vector3 terrainPos = terrain.transform.position;
         float localX = worldX - terrainPos.x;
         float localZ = worldZ - terrainPos.z;
@@ -212,7 +212,7 @@ public class TerrainGraph
         int i = (int)Math.Floor(localX / tileSize);
         int j = (int)Math.Floor(localZ / tileSize);
 
-        // Check bounds
+        // check bounds
         if (i < 0 || i >= matrix.GetLength(0) || j < 0 || j >= matrix.GetLength(1))
             return null;
 

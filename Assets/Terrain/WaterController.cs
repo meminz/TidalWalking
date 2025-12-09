@@ -12,14 +12,14 @@ public class WaterController : MonoBehaviour
 
     void Start()
     {
-        // Start at minimum level
+        // start at minimum level
         currentWaterLevel = minWaterLevel;
         UpdateWaterPosition();
     }
 
     void Update()
     {
-        // Update water level
+        // update water level
         if (isRising)
         {
             currentWaterLevel += waterSpeed * Time.deltaTime;
@@ -62,22 +62,22 @@ public class WaterController : MonoBehaviour
 
     public float GetWaterLevelAtTime(float futureTime)
     {
-        // Calculate cycle duration
+        // calculate cycle duration
         float range = maxWaterLevel - minWaterLevel;
         float cycleDuration = range / waterSpeed * 2f; // Up + down
 
-        // Normalize time within cycle
+        // normalize time within cycle
         float timeInCycle = futureTime % cycleDuration;
         float halfCycle = cycleDuration / 2f;
 
         if (timeInCycle < halfCycle)
         {
-            // Rising phase
+            // rising phase
             return minWaterLevel + (waterSpeed * timeInCycle);
         }
         else
         {
-            // Falling phase
+            // falling phase
             float fallingTime = timeInCycle - halfCycle;
             return maxWaterLevel - (waterSpeed * fallingTime);
         }

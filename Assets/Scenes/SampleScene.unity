@@ -517,8 +517,8 @@ MonoBehaviour:
   flatSpeed: 1
   uphillSpeed: 0.5
   safetyMargin: 0.1
-  replanInterval: 1
-  checkNodesAhead: 8
+  wanderInterval: 2
+  checkNodesAhead: 6
   visualizePath: 1
 --- !u!1 &827530026
 GameObject:
@@ -628,8 +628,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   terrainSize: {x: 50, y: 10, z: 100}
-  perlinScale: 8
-  octaves: 3
+  perlinScale: 10
+  octaves: 5
   persistence: 1
   minCornerHeight: 7.5
   safeZoneRadius: 8
