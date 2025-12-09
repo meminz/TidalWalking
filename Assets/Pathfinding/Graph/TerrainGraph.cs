@@ -135,8 +135,6 @@ public class TerrainGraph
         if (heightDiff > 0.1f)
             cost *= 2f;
 
-        // float safeHeight = 7.1f; // Around max water level
-
         if (to.y < safeHeight)
         {
             float dangerPenalty = (safeHeight - to.y) * 6f;

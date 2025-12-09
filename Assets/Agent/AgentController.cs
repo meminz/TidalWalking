@@ -90,19 +90,12 @@ public class AgentController : MonoBehaviour
         FSMTransition canResumeToGoal = new(CanSafelyReachGoal);
         seekHighGround.AddTransition(canResumeToGoal, traverse);
 
-        // shouldn't be necessary
-        FSMTransition reachedGoalFromHighGround = new(HasReachedGoal);
-        seekHighGround.AddTransition(reachedGoalFromHighGround, goalReached);
 
         FSMTransition noProgressPossible = new FSMTransition(CannotMakeProgress);
         seekHighGround.AddTransition(noProgressPossible, wander);
 
         FSMTransition canResumeFromWander = new FSMTransition(CanSafelyReachGoal);
         wander.AddTransition(canResumeFromWander, traverse);
-
-        // shouldn't be necessary
-        FSMTransition reachedGoalFromWander = new FSMTransition(HasReachedGoal);
-        wander.AddTransition(reachedGoalFromWander, goalReached);
 
 
         fsm = new FSM(traverse);
@@ -580,11 +573,7 @@ public class AgentController : MonoBehaviour
 
     void MoveTowardsTarget()
     {
-        // Debug.Log($"Moving towards target {currentPathIndex}/{currentPath.Count}");
-
-        // Vector3 adjTarget = new(currentTarget.x, transform.position.y, currentTarget.z);
         Vector3 adjTarget = new(currentTarget.x, currentTarget.y + halfHeight, currentTarget.z);
-        // Vector3 adjTarget = currentTarget;
         Vector3 direction = (adjTarget - transform.position).normalized;
 
         float heightDiff = adjTarget.y - transform.position.y;
@@ -596,8 +585,9 @@ public class AgentController : MonoBehaviour
             Orientate(terrain, direction);
             StayAboveGround(terrain);
 
+            // TODO half height displacement along surface normal
             // Vector3 surfaceNormal = Orientate(terrain, direction);
-            // Vector3 nextPos = transform.position + direction * step;
+            // Vector3 nextPos = transform.position + direction  step;
             // float terrainHeight = terrain.SampleHeight(transform.position) + halfHeight;
             // nextPos = new Vector3(nextPos.x, terrainHeight, nextPos.z);
             // Vector3 aboveSurfacePos = nextPos + surfaceNormal * halfHeight;
@@ -653,7 +643,7 @@ public class AgentController : MonoBehaviour
                 targetRot,
                 Time.deltaTime * 4f
                 );
-        return interpolatedNormal;
+        // return interpolatedNormal;
     }
 
     int FindNewPathClosestIndex(List<Node> newPath)

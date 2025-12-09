@@ -517,8 +517,9 @@ MonoBehaviour:
   flatSpeed: 1
   uphillSpeed: 0.5
   safetyMargin: 0.1
+  checkInterval: 2
   wanderInterval: 2
-  checkNodesAhead: 6
+  checkNodesAhead: 8
   visualizePath: 1
 --- !u!1 &827530026
 GameObject:
