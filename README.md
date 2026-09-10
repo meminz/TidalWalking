@@ -73,7 +73,7 @@ The graph is dynamically rebuilt to exclude nodes submerged below the current wa
 
 The agent operates through four states. Transitions are evaluated in order each frame; the first condition that returns true fires. There is no exit from Goal Reached -- it is a terminal state.
 
-![FSM Diagram](FSM.png)
+![FSM Diagram](description/FSM.png)
 
 ### States
 
